@@ -1,18 +1,16 @@
+
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
+from datetime import datetime
 
 from database import SessionLocal, engine, Base
 from models import Assignment
-<<<<<<< HEAD
 from schemas import AssignmentCreate, AssignmentResponse, AssignmentUpdate
 
 # Create tables
 Base.metadata.create_all(bind=engine)
-=======
-from schemas import AssignmentCreate
->>>>>>> d78cdcdc293517165db2d872974559cc34e9d7ec
 
 app = FastAPI()
 
@@ -31,44 +29,28 @@ def get_db():
     finally:
         db.close()
 
-<<<<<<< HEAD
 @app.post("/api/assignments", response_model=AssignmentResponse, status_code=201)
 def create_assignment(data: AssignmentCreate, db: Session = Depends(get_db)):
     assignment = Assignment(**data.model_dump())
-=======
-@app.post("/api/assignments", status_code=201)
-def create_assignment(data: AssignmentCreate, db: Session = Depends(get_db)):
-    assignment = Assignment(
-        title=data.title,
-        description=data.description,
-        status="Pending"
-    )
-
->>>>>>> d78cdcdc293517165db2d872974559cc34e9d7ec
     db.add(assignment)
     db.commit()
     db.refresh(assignment)
     return assignment
 
-<<<<<<< HEAD
 @app.get("/api/assignments", response_model=List[AssignmentResponse])
-=======
-
-@app.get("/api/assignments")
->>>>>>> d78cdcdc293517165db2d872974559cc34e9d7ec
 def list_assignments(db: Session = Depends(get_db)):
-    return db.query(Assignment).all()
+    return db.query(Assignment).filter(Assignment.deleted == False).all()
 
 @app.get("/api/assignments/{assignment_id}", response_model=AssignmentResponse)
 def get_assignment(assignment_id: int, db: Session = Depends(get_db)):
-    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id, Assignment.deleted == False).first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
     return assignment
 
 @app.patch("/api/assignments/{assignment_id}", response_model=AssignmentResponse)
 def update_assignment(assignment_id: int, data: AssignmentUpdate, db: Session = Depends(get_db)):
-    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id, Assignment.deleted == False).first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
 
@@ -82,9 +64,47 @@ def update_assignment(assignment_id: int, data: AssignmentUpdate, db: Session = 
 
 @app.delete("/api/assignments/{assignment_id}", status_code=204)
 def delete_assignment(assignment_id: int, db: Session = Depends(get_db)):
-    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    """Soft delete - moves assignment to trash"""
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id, Assignment.deleted == False).first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
 
+    assignment.deleted = True
+    assignment.deleted_time = datetime.now()
+    db.commit()
+
+@app.get("/api/assignments/trash/list", response_model=List[AssignmentResponse])
+def list_trash(db: Session = Depends(get_db)):
+    """Get all deleted assignments"""
+    return db.query(Assignment).filter(Assignment.deleted == True).all()
+
+@app.post("/api/assignments/{assignment_id}/restore", response_model=AssignmentResponse)
+def restore_assignment(assignment_id: int, db: Session = Depends(get_db)):
+    """Restore a deleted assignment from trash"""
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id, Assignment.deleted == True).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found in trash")
+
+    assignment.deleted = False
+    assignment.deleted_time = None
+    db.commit()
+    db.refresh(assignment)
+    return assignment
+
+@app.delete("/api/assignments/{assignment_id}/permanent", status_code=204)
+def permanent_delete(assignment_id: int, db: Session = Depends(get_db)):
+    """Permanently delete an assignment from trash"""
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id, Assignment.deleted == True).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found in trash")
+
     db.delete(assignment)
+    db.commit()
+
+@app.delete("/api/assignments/trash/empty", status_code=204)
+def empty_trash(db: Session = Depends(get_db)):
+    """Permanently delete all assignments in trash"""
+    deleted_assignments = db.query(Assignment).filter(Assignment.deleted == True).all()
+    for assignment in deleted_assignments:
+        db.delete(assignment)
     db.commit()
