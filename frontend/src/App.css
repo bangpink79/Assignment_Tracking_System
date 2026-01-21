@@ -1,38 +1,33 @@
-.App {
-  text-align: center;
-}
+import psycopg2
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
+def create_database():
+    try:
+        # Connect to default 'postgres' database
+        conn = psycopg2.connect(
+            dbname="postgres",
+            user="postgres",
+            password="postgres",
+            host="localhost",
+            port="5432"
+        )
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        cur = conn.cursor()
+        
+        # Check if database exists
+        cur.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = 'assignment_db'")
+        exists = cur.fetchone()
+        
+        if not exists:
+            cur.execute("CREATE DATABASE assignment_db")
+            print("Database 'assignment_db' created successfully.")
+        else:
+            print("Database 'assignment_db' already exists.")
+            
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error: {e}")
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+if __name__ == "__main__":
+    create_database()
