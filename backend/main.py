@@ -5,10 +5,14 @@ from typing import List
 
 from database import SessionLocal, engine, Base
 from models import Assignment
+<<<<<<< HEAD
 from schemas import AssignmentCreate, AssignmentResponse, AssignmentUpdate
 
 # Create tables
 Base.metadata.create_all(bind=engine)
+=======
+from schemas import AssignmentCreate
+>>>>>>> d78cdcdc293517165db2d872974559cc34e9d7ec
 
 app = FastAPI()
 
@@ -27,15 +31,31 @@ def get_db():
     finally:
         db.close()
 
+<<<<<<< HEAD
 @app.post("/api/assignments", response_model=AssignmentResponse, status_code=201)
 def create_assignment(data: AssignmentCreate, db: Session = Depends(get_db)):
     assignment = Assignment(**data.model_dump())
+=======
+@app.post("/api/assignments", status_code=201)
+def create_assignment(data: AssignmentCreate, db: Session = Depends(get_db)):
+    assignment = Assignment(
+        title=data.title,
+        description=data.description,
+        status="Pending"
+    )
+
+>>>>>>> d78cdcdc293517165db2d872974559cc34e9d7ec
     db.add(assignment)
     db.commit()
     db.refresh(assignment)
     return assignment
 
+<<<<<<< HEAD
 @app.get("/api/assignments", response_model=List[AssignmentResponse])
+=======
+
+@app.get("/api/assignments")
+>>>>>>> d78cdcdc293517165db2d872974559cc34e9d7ec
 def list_assignments(db: Session = Depends(get_db)):
     return db.query(Assignment).all()
 
